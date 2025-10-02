@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>名前管理アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #333;
+        }
+        
+        .name-list {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .name-item {
+            padding: 20px;
+            font-size: 24px;
+            background: white;
+            cursor: pointer;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none; /* 長押し選択防止 */
+        }
+        
+        .name-item:hover {
+            background: #fafafa;
+        }
+        
+        .name-item.highlighted {
+            background: #ffeb3b;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: #999;
+            font-size: 20px;
+            padding: 60px;
+            background: white;
+        }
+        
+        .add-button {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            width: 60px;
+            height: 60px;
+            background: #333;
+            color: white;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-radius: 50%;
+        }
+        
+        .add-button:hover {
+            background: #555;
+        }
+        
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .overlay.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal {
+            background: white;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        
+        .modal h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        #nameInput {
+            padding: 15px;
+            font-size: 20px;
+            border: 2px solid #ddd;
+            outline: none;
+        }
+        
+        #nameInput:focus {
+            border-color: #333;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .modal-button {
+            flex: 1;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .modal-button.primary {
+            background: #333;
+            color: white;
+        }
+        
+        .modal-button.primary:hover {
+            background: #555;
+        }
+        
+        .modal-button.secondary {
+            background: #ddd;
+            color: #333;
+        }
+        
+        .modal-button.secondary:hover {
+            background: #ccc;
+        }
+
+        #importInput {
+            display: none; /* ファイル選択を隠す */
+        }
+
+        .settings-content button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 15px;
+            font-size: 18px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+
+        .settings-content button:hover {
+            background-color: #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>名前リスト</h1>
+            <button class="settings-btn" id="openSettings">⚙️</button>
+        </div>
+        <div id="nameList" class="name-list"></div>
+    </div>
+
+    <button class="add-button" id="openAddModal">+</button>
+    <div class="overlay" id="addOverlay">
+        <div class="modal">
+            <h2>名前を追加</h2>
+            <div class="input-section">
+                <input type="text" id="nameInput" placeholder="名前を入力">
+                <div class="modal-buttons">
+                    <button class="modal-button primary" id="addButton">追加</button>
+                    <button class="modal-button secondary" id="closeAddModal">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="settingsOverlay">
+        <div class="modal">
+            <h2>設定・データ管理</h2>
+            <div class="settings-content">
+                <button id="exportButton">JSONで書き出し 💾</button>
+                <button id="importTrigger">JSONから読み込み 📤</button>
+                <input type="file" id="importInput" accept="application/json">
+                <button class="modal-button secondary" id="closeSettings">閉じる</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="overlay" id="confirmOverlay">
+        <div class="modal">
+            <h2 id="confirmMessage"></h2>
+            <div class="modal-buttons">
+                <button class="modal-button primary" id="confirmDeleteButton">削除</button>
+                <button class="modal-button secondary" id="cancelDeleteButton">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const nameInput = document.getElementById('nameInput');
+        const addButton = document.getElementById('addButton');
+        const nameList = document.getElementById('nameList');
+        
+        // モーダル要素
+        const openAddModal = document.getElementById('openAddModal');
+        const closeAddModal = document.getElementById('closeAddModal');
+        const addOverlay = document.getElementById('addOverlay');
+        const openSettings = document.getElementById('openSettings');
+        const closeSettings = document.getElementById('closeSettings');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        const confirmOverlay = document.getElementById('confirmOverlay');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmDeleteButton = document.getElementById('confirmDeleteButton');
+        const cancelDeleteButton = document.getElementById('cancelDeleteButton');
+
+        // JSON操作要素
+        const exportButton = document.getElementById('exportButton');
+        const importTrigger = document.getElementById('importTrigger');
+        const importInput = document.getElementById('importInput');
+
+        let nameIndexToDelete = -1; // 削除対象のインデックスを保持
+        let pressTimer; // 長押し判定用タイマー
+
+        // --- モーダル制御関数 ---
+
+        function openModal(overlayElement, focusElement = null) {
+            overlayElement.classList.add('show');
+            if (focusElement) focusElement.focus();
+        }
+
+        function closeModal(overlayElement) {
+            overlayElement.classList.remove('show');
+            // 名前入力欄は閉じる時にクリア
+            if (overlayElement === addOverlay) {
+                nameInput.value = '';
+            }
+        }
+
+        // イベントリスナー: モーダル開閉
+        openAddModal.addEventListener('click', () => openModal(addOverlay, nameInput));
+        closeAddModal.addEventListener('click', () => closeModal(addOverlay));
+        addOverlay.addEventListener('click', (e) => {
+            if (e.target === addOverlay) closeModal(addOverlay);
+        });
+
+        openSettings.addEventListener('click', () => openModal(settingsOverlay));
+        closeSettings.addEventListener('click', () => closeModal(settingsOverlay));
+        settingsOverlay.addEventListener('click', (e) => {
+            if (e.target === settingsOverlay) closeModal(settingsOverlay);
+        });
+
+        cancelDeleteButton.addEventListener('click', () => closeModal(confirmOverlay));
+        confirmOverlay.addEventListener('click', (e) => {
+            if (e.target === confirmOverlay) closeModal(confirmOverlay);
+        });
+        
+        // --- データ永続化関数 ---
+        
+        // localStorageからデータを取得
+        function loadData() {
+            const names = JSON.parse(localStorage.getItem('names')) || [];
+            const highlighted = JSON.parse(localStorage.getItem('highlighted')) || [];
+            return { names, highlighted };
+        }
+        
+        // localStorageにデータを保存
+        function saveData(names, highlighted) {
+            localStorage.setItem('names', JSON.stringify(names));
+            localStorage.setItem('highlighted', JSON.stringify(highlighted));
+        }
+        
+        // --- メインロジック ---
+
+        // 一覧を表示
+        function renderList() {
+            const { names, highlighted } = loadData();
+            nameList.innerHTML = '';
+            
+            if (names.length === 0) {
+                nameList.innerHTML = '<div class="empty-message">名前を追加してください</div>';
+                return;
+            }
+            
+            names.forEach((name, index) => {
+                const item = document.createElement('div');
+                item.className = 'name-item';
+                item.dataset.index = index; // インデックスを保持
+                if (highlighted.includes(index)) {
+                    item.classList.add('highlighted');
+                }
+                
+                item.textContent = name;
+                
+                // イベントリスナーをアタッチ
+                item.addEventListener('click', (e) => {
+                    // 長押し判定が発火しなかった場合のみハイライトをトグル
+                    if (!item.classList.contains('deleting')) {
+                        toggleHighlight(index);
+                    }
+                    item.classList.remove('deleting'); // リセット
+                });
+
+                // 長押し（mousedown/touchstart）でタイマーを開始
+                const startPress = () => {
+                    // 他のモーダルが開いていたら無視
+                    if (addOverlay.classList.contains('show') || settingsOverlay.classList.contains('show')) return;
+                    
+                    pressTimer = setTimeout(() => {
+                        item.classList.add('deleting'); // 削除アクションが進行中であることを示す
+                        nameIndexToDelete = index;
+                        confirmMessage.textContent = `「${name}」を本当に削除しますか？`;
+                        openModal(confirmOverlay);
+                    }, 600); // 600ミリ秒を長押しとする
+                };
+
+                // 押下解除（mouseup/touchend/mouseleave）でタイマーを解除
+                const cancelPress = () => {
+                    clearTimeout(pressTimer);
+                };
+
+                item.addEventListener('mousedown', startPress);
+                item.addEventListener('touchstart', startPress);
+                
+                item.addEventListener('mouseup', cancelPress);
+                item.addEventListener('mouseleave', cancelPress);
+                item.addEventListener('touchend', cancelPress);
+
+                nameList.appendChild(item);
+            });
+        }
+        
+        // 名前を追加
+        function addName() {
+            const name = nameInput.value.trim();
+            if (name === '') {
+                alert('名前を入力してください。');
+                return;
+            }
+            
+            const { names, highlighted } = loadData();
+            names.push(name);
+            saveData(names, highlighted);
+            
+            closeModal(addOverlay);
+            renderList();
+        }
+        
+        // ハイライトを切り替え
+        function toggleHighlight(index) {
+            const { names, highlighted } = loadData();
+            const highlightIndex = highlighted.indexOf(index);
+            
+            if (highlightIndex > -1) {
+                highlighted.splice(highlightIndex, 1);
+            } else {
+                highlighted.push(index);
+            }
+            
+            saveData(names, highlighted);
+            renderList();
+        }
+        
+        // 名前を削除
+        function deleteName(index) {
+            const { names, highlighted } = loadData();
+            names.splice(index, 1);
+            
+            // ハイライトのインデックスを調整
+            const newHighlighted = highlighted
+                .filter(i => i !== index)
+                .map(i => i > index ? i - 1 : i);
+            
+            saveData(names, newHighlighted);
+            closeModal(confirmOverlay);
+            renderList();
+            nameIndexToDelete = -1;
+        }
+
+        // --- JSON操作関数 ---
+
+        // JSONで書き出し
+        function exportData() {
+            const { names, highlighted } = loadData();
+            const data = { names, highlighted };
+            const json = JSON.stringify(data, null, 2);
+            
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'name_list_export.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('JSONファイルがダウンロードされました。');
+            closeModal(settingsOverlay);
+        }
+
+        // JSONから読み込み
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData.names)) {
+                        const newNames = importedData.names;
+                        // ハイライトデータが有効であれば使用、そうでなければ空配列
+                        const newHighlighted = Array.isArray(importedData.highlighted) 
+                            ? importedData.highlighted.filter(i => i >= 0 && i < newNames.length) 
+                            : [];
+                        
+                        // データを上書き保存
+                        saveData(newNames, newHighlighted);
+                        renderList();
+                        alert('JSONデータが正常に読み込まれ、リストが更新されました。');
+                        closeModal(settingsOverlay);
+                    } else {
+                        throw new Error('JSON形式が無効です。');
+                    }
+                } catch (error) {
+                    alert('ファイルの読み込みに失敗しました。JSONファイルの内容を確認してください。');
+                    console.error('Import Error:', error);
+                } finally {
+                    importInput.value = ''; // ファイル選択をリセット
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // --- 全体のイベントリスナー ---
+        
+        // 名前追加/Enterキー
+        addButton.addEventListener('click', addName);
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addName();
+        });
+
+        // 削除実行ボタン
+        confirmDeleteButton.addEventListener('click', () => {
+            if (nameIndexToDelete > -1) {
+                deleteName(nameIndexToDelete);
+            }
+        });
+
+        // JSON操作イベント
+        exportButton.addEventListener('click', exportData);
+        importTrigger.addEventListener('click', () => importInput.click()); // 隠したinput[type=file]をクリック
+        importInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                importData(file);
+            }
+        });
+        
+        // 初期表示
+        renderList();
+    </script>
+</body>
+</html>
