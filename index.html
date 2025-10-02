@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プログラム松高祭体育の部2025 10.3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+        }
+        
+        .header {
+            background: #007AFF;
+            color: white;
+            padding: 16px 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .status {
+            flex-shrink: 0;
+            padding: 12px;
+            background: white;
+        }
+        
+        .status-item {
+            background: #f8f8f8;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-item.now {
+            background: #FF3B30;
+            color: white;
+        }
+        
+        .status-item.next {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .status-label {
+            font-size: 11px;
+            font-weight: 600;
+            opacity: 0.8;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .event-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .event-time {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .schedule-list {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .schedule-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+        
+        .schedule-item:active {
+            background: #f8f8f8;
+        }
+        
+        .schedule-item.current {
+            background: #ffebee;
+        }
+        
+        .schedule-item.next-event {
+            background: #e3f2fd;
+        }
+        
+        .schedule-item.ceremony {
+            background: #fff9e0;
+        }
+        
+        .item-no {
+            width: 36px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #8e8e93;
+            flex-shrink: 0;
+        }
+        
+        .item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .item-name {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .item-type {
+            font-size: 13px;
+            color: #8e8e93;
+        }
+        
+        .item-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #007AFF;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+        
+        .no-event {
+            padding: 20px;
+            text-align: center;
+            color: #8e8e93;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">松高祭体育の部 10.3</div>
+        
+        <div class="status" id="statusArea"></div>
+        
+        <div class="schedule-list" id="scheduleList"></div>
+    </div>
+
+    <script>
+        const schedule = [
+            { no: '', name: '開会式', type: '', start: '9:00', gather: '', isCeremony: true },
+            { no: '1', name: '障害物競走', type: '個人', start: '9:25', gather: '9:20' },
+            { no: '2', name: 'ボール運び競走', type: '個人', start: '9:50', gather: '9:40' },
+            { no: '3', name: '〇✕クイズ競走', type: '個人', start: '10:15', gather: '10:05' },
+            { no: '4', name: '借り人競走', type: '個人', start: '10:45', gather: '10:35' },
+            { no: '5', name: '台風の目', type: '団体（1年）', start: '11:10', gather: '11:00' },
+            { no: '6', name: 'みんなでジャンプ', type: '団体（2年）', start: '11:30', gather: '11:20' },
+            { no: '7', name: 'ムカデ競走', type: '団体（3年）', start: '11:50', gather: '11:40' },
+            { no: '8', name: 'クラス対抗リレー', type: '選抜団体', start: '12:05', gather: '12:00' },
+            { no: '', name: '閉会式', type: '', start: '12:30', gather: '', isCeremony: true }
+        ];
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date('2025-10-03T00:00:00+09:00');
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function getCurrentAndNext() {
+            const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+            let currentEvent = null;
+            let nextEvent = null;
+
+            for (let i = 0; i < schedule.length; i++) {
+                const eventStart = parseTime(schedule[i].start);
+                const eventEnd = i < schedule.length - 1 ? parseTime(schedule[i + 1].start) : new Date(eventStart.getTime() + 30 * 60000);
+
+                if (now >= eventStart && now < eventEnd) {
+                    currentEvent = schedule[i];
+                    nextEvent = schedule[i + 1] || null;
+                    break;
+                }
+            }
+
+            if (!currentEvent && now < parseTime(schedule[0].start)) {
+                nextEvent = schedule[0];
+            }
+
+            return { currentEvent, nextEvent };
+        }
+
+        function updateStatus() {
+            const { currentEvent, nextEvent } = getCurrentAndNext();
+            const statusArea = document.getElementById('statusArea');
+            statusArea.innerHTML = '';
+
+            if (currentEvent) {
+                statusArea.innerHTML += `
+                    <div class="status-item now">
+                        <div class="status-label">Now</div>
+                        <div class="status-content">
+                            <div class="event-name">${currentEvent.name}</div>
+                            <div class="event-time">${currentEvent.start}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (nextEvent) {
+                statusArea.innerHTML += `
+                    <div class="status-item next">
+                        <div class="status-label">Next</div>
+                        <div class="status-content">
+                            <div class="event-name">${nextEvent.name}</div>
+                            <div class="event-time">${nextEvent.start}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (!currentEvent && !nextEvent) {
+                statusArea.innerHTML = `<div class="no-event">プログラム終了</div>`;
+            }
+        }
+
+        function updateList() {
+            const { currentEvent, nextEvent } = getCurrentAndNext();
+            const scheduleList = document.getElementById('scheduleList');
+            scheduleList.innerHTML = '';
+
+            schedule.forEach(event => {
+                const item = document.createElement('div');
+                item.className = 'schedule-item';
+                
+                if (event.isCeremony) {
+                    item.classList.add('ceremony');
+                } else if (currentEvent && event.start === currentEvent.start) {
+                    item.classList.add('current');
+                } else if (nextEvent && event.start === nextEvent.start) {
+                    item.classList.add('next-event');
+                }
+
+                item.innerHTML = `
+                    <div class="item-no">${event.no}</div>
+                    <div class="item-content">
+                        <div class="item-name">${event.name}</div>
+                        ${event.type ? `<div class="item-type">${event.type}</div>` : ''}
+                    </div>
+                    <div class="item-time">${event.start}</div>
+                `;
+                scheduleList.appendChild(item);
+            });
+        }
+
+        function update() {
+            updateStatus();
+            updateList();
+        }
+
+        update();
+        setInterval(update, 30000);
+    </script>
+</body>
+</html>
